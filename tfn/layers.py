@@ -63,7 +63,7 @@ class Harmonic(nn.Module):
             x = rij[:, :, :, 0]  # [batch, pts, pts]
             y = rij[:, :, :, 1]  # [batch, pts, pts]
             z = rij[:, :, :, 2]  # [batch, pts, pts]
-            r2 = torch.max(torch.sum(tensor**2, dim=-1), EPS)
+            r2 = torch.max(torch.sum(rij**2, dim=-1), EPS)
             output = torch.stack([
                     x * y / r2,
                     y * z / r2,
@@ -96,7 +96,7 @@ class Filter(nn.Module):
         # Radial component
         R = self.radial(rbf)  # [batch, pts, pts, n_chan]
         if self.order != 0:  # Mask for order > 1
-            mask = (torch.sum(torch.sqrt(rij**2), dim=-1, keepdim=True) < EPS)  # [batch, pts, pts, 1]
+            mask = (torch.sqrt(torch.sum(rij**2, dim=-1, keepdim=True)) < EPS)  # [batch, pts, pts, 1]
             mask = torch.cat(R.size(-1) * [mask], dim=-1)  # [batch, pts, pts, n_chan]
             R = torch.where(mask, torch.zeros_like(R), R)  # [batch, pts, pts, n_chan]
         # Angular component
@@ -105,6 +105,7 @@ class Filter(nn.Module):
         F_out = torch.unsqueeze(R, -1) * torch.unsqueeze(Y, -2)  # [batch, pts, pts, n_chan, f_rep]
 
         # Transformation law + apply filter
+        # [x, y, z] [batch, p, p, n_chan, f_rep] [batch, p, n_chan, xyz] -> [batch, p, n_chan, xyz]
         return torch.einsum('ijk,abcdj,acdk->abdi', self.cg, F_out, tensor)
 
 
